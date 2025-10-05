@@ -1,13 +1,11 @@
+import { useAuthStore } from '@/pages/auth/store/auth-store'
 import {
-	Calendar,
 	ChevronDown,
 	Home,
 	LogOut,
 	Menu,
-	PieChart,
 	Receipt,
 	Tags,
-	TrendingUp,
 	User,
 	Wallet,
 	X
@@ -30,25 +28,11 @@ const items = [
 		title: 'Категории',
 		url: '/categories',
 		icon: Tags
-	},
-	{
-		title: 'Аналитика',
-		url: '/analytics',
-		icon: PieChart
-	},
-	{
-		title: 'Бюджет',
-		url: '/budget',
-		icon: TrendingUp
-	},
-	{
-		title: 'Календарь',
-		url: '/calendar',
-		icon: Calendar
 	}
 ]
 
 export function AppSidebar() {
+	const { user } = useAuthStore()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -56,7 +40,8 @@ export function AppSidebar() {
 
 	const handleSignOut = () => {
 		// Логика выхода из аккаунта
-		console.log('Выход из аккаунта')
+		localStorage.removeItem('auth_token')
+		localStorage.removeItem('auth_user')
 		navigate('/auth')
 	}
 
@@ -212,7 +197,7 @@ export function AppSidebar() {
 							<div className='flex-1 text-left'>
 								<p className='text-sm font-medium'>Пользователь</p>
 								<p className='text-xs text-muted-foreground'>
-									user@example.com
+									{user?.username}
 								</p>
 							</div>
 							<ChevronDown

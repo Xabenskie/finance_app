@@ -1,66 +1,58 @@
+import { ApiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-	Calendar,
-	Eye,
-	EyeOff,
-	Lock,
-	Mail,
-	Phone,
-	User,
-	Wallet
-} from 'lucide-react'
+import { Eye, EyeOff, Lock, User, Wallet } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { register } from './api/register'
 
 export function Register({
 	setIsLogin
 }: {
 	setIsLogin: React.Dispatch<React.SetStateAction<boolean>>
 }) {
-	const navigate = useNavigate()
 	const [showPassword, setShowPassword] = useState(false)
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 	const [formData, setFormData] = useState({
-		firstName: '',
-		lastName: '',
-		email: '',
-		phone: '',
-		dateOfBirth: '',
+		username: '',
 		password: '',
 		confirmPassword: ''
 	})
 	const [isLoading, setIsLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target
-		setFormData(prev => ({
-			...prev,
-			[name]: value
-		}))
+		setFormData(prev => ({ ...prev, [name]: value }))
 	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setIsLoading(true)
+		setError(null)
 
 		try {
-			// Проверка совпадения паролей
 			if (formData.password !== formData.confirmPassword) {
-				alert('Пароли не совпадают')
+				setError('Пароли не совпадают')
 				return
 			}
 
-			// Здесь будет логика регистрации
-			console.log('Регистрация:', formData)
-
-			// Имитация запроса к серверу
-			await new Promise(resolve => setTimeout(resolve, 2000))
-
-			// После успешной регистрации перенаправляем на дашборд
-			navigate('/dashboard')
-		} catch (error) {
-			console.error('Ошибка регистрации:', error)
+			// Здесь будет реальный вызов API регистрации
+			await register({
+				username: formData.username,
+				password: formData.password
+			})
+			// После успешной регистрации можно либо:
+			// - переключить на форму логина -> setIsLogin(true)
+			// - или сразу редиректить на дашборд
+			setIsLogin(true)
+			// navigate('/dashboard') // если хотите сразу входить
+		} catch (err) {
+			if (err instanceof ApiError) {
+				setError(err.message)
+			} else {
+				setError('Не удалось зарегистрироваться')
+			}
 		} finally {
 			setIsLoading(false)
 		}
@@ -86,109 +78,37 @@ export function Register({
 						<h1 className='text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2'>
 							FinanceApp
 						</h1>
-						<p className='text-slate-600'>Создайте новый аккаунт</p>
+						<p className='text-slate-600'>Создайте аккаунт</p>
 					</div>
 
 					{/* Register Form */}
 					<form onSubmit={handleSubmit} className='space-y-6'>
-						{/* Name Fields */}
-						<div className='grid grid-cols-2 gap-4'>
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-slate-700'>
-									Имя
-								</label>
-								<div className='relative'>
-									<User className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
-									<Input
-										type='text'
-										name='firstName'
-										value={formData.firstName}
-										onChange={handleInputChange}
-										placeholder='Имя'
-										className='pl-10 h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
-										required
-									/>
-								</div>
-							</div>
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-slate-700'>
-									Фамилия
-								</label>
+						{/* Username */}
+						<div className='space-y-2'>
+							<label className='text-sm font-medium text-slate-700'>
+								Имя пользователя
+							</label>
+							<div className='relative'>
+								<User className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
 								<Input
 									type='text'
-									name='lastName'
-									value={formData.lastName}
+									name='username'
+									value={formData.username}
 									onChange={handleInputChange}
-									placeholder='Фамилия'
-									className='h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
-									required
-								/>
-							</div>
-						</div>
-
-						{/* Email Field */}
-						<div className='space-y-2'>
-							<label className='text-sm font-medium text-slate-700'>
-								Email адрес
-							</label>
-							<div className='relative'>
-								<Mail className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
-								<Input
-									type='email'
-									name='email'
-									value={formData.email}
-									onChange={handleInputChange}
-									placeholder='Введите ваш email'
+									placeholder='username'
 									className='pl-10 h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
 									required
 								/>
 							</div>
 						</div>
 
-						{/* Phone Field */}
-						<div className='space-y-2'>
-							<label className='text-sm font-medium text-slate-700'>
-								Телефон
-							</label>
-							<div className='relative'>
-								<Phone className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
-								<Input
-									type='tel'
-									name='phone'
-									value={formData.phone}
-									onChange={handleInputChange}
-									placeholder='+7 (999) 123-45-67'
-									className='pl-10 h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
-									required
-								/>
-							</div>
-						</div>
-
-						{/* Date of Birth Field */}
-						<div className='space-y-2'>
-							<label className='text-sm font-medium text-slate-700'>
-								Дата рождения
-							</label>
-							<div className='relative'>
-								<Calendar className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
-								<Input
-									type='date'
-									name='dateOfBirth'
-									value={formData.dateOfBirth}
-									onChange={handleInputChange}
-									className='pl-10 h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
-									required
-								/>
-							</div>
-						</div>
-
-						{/* Password Field */}
+						{/* Password */}
 						<div className='space-y-2'>
 							<label className='text-sm font-medium text-slate-700'>
 								Пароль
 							</label>
 							<div className='relative'>
-								<Lock className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
+								<Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
 								<Input
 									type={showPassword ? 'text' : 'password'}
 									name='password'
@@ -200,8 +120,8 @@ export function Register({
 								/>
 								<button
 									type='button'
-									onClick={() => setShowPassword(!showPassword)}
-									className='absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors'
+									onClick={() => setShowPassword(p => !p)}
+									className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors'
 								>
 									{showPassword ? (
 										<EyeOff className='w-4 h-4' />
@@ -212,13 +132,13 @@ export function Register({
 							</div>
 						</div>
 
-						{/* Confirm Password Field */}
+						{/* Confirm Password */}
 						<div className='space-y-2'>
 							<label className='text-sm font-medium text-slate-700'>
-								Подтвердите пароль
+								Повторите пароль
 							</label>
 							<div className='relative'>
-								<Lock className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
+								<Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
 								<Input
 									type={showConfirmPassword ? 'text' : 'password'}
 									name='confirmPassword'
@@ -230,8 +150,8 @@ export function Register({
 								/>
 								<button
 									type='button'
-									onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-									className='absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors'
+									onClick={() => setShowConfirmPassword(p => !p)}
+									className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors'
 								>
 									{showConfirmPassword ? (
 										<EyeOff className='w-4 h-4' />
@@ -241,6 +161,12 @@ export function Register({
 								</button>
 							</div>
 						</div>
+
+						{error && (
+							<div className='p-3 text-sm rounded-md bg-red-100 text-red-700 border border-red-200'>
+								{error}
+							</div>
+						)}
 
 						{/* Submit Button */}
 						<Button

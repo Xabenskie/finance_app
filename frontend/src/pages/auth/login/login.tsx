@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAuthStore } from '@/pages/auth/store/auth-store'
 import { Eye, EyeOff, Lock, Mail, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -12,10 +13,18 @@ export function Login({
 	const navigate = useNavigate()
 	const [showPassword, setShowPassword] = useState(false)
 	const [formData, setFormData] = useState({
-		email: '',
+		username: '',
 		password: ''
 	})
 	const [isLoading, setIsLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	const {
+		login: loginAction,
+		error: authError,
+		clearError,
+		user
+	} = useAuthStore()
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target
@@ -28,18 +37,21 @@ export function Login({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setIsLoading(true)
-
+		setError(null)
+		clearError()
 		try {
-			// Здесь будет логика авторизации
-			console.log('Вход:', formData)
+			await loginAction({
+				username: formData.username,
+				password: formData.password
+			})
 
-			// Имитация запроса к серверу
-			await new Promise(resolve => setTimeout(resolve, 1500))
-
-			// После успешного входа перенаправляем на дашборд
-			navigate('/dashboard')
-		} catch (error) {
-			console.error('Ошибка входа:', error)
+			if (user) {
+				navigate('/dashboard')
+			}
+			// редирект теперь делаем только по user
+		} catch (err) {
+			// error уже обработан в сторе
+			console.log(err)
 		} finally {
 			setIsLoading(false)
 		}
@@ -70,19 +82,19 @@ export function Login({
 
 					{/* Login Form */}
 					<form onSubmit={handleSubmit} className='space-y-6'>
-						{/* Email Field */}
+						{/* Username Field */}
 						<div className='space-y-2'>
 							<label className='text-sm font-medium text-slate-700'>
-								Email адрес
+								Имя пользователя
 							</label>
 							<div className='relative'>
 								<Mail className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400' />
 								<Input
-									type='email'
-									name='email'
-									value={formData.email}
+									type='text'
+									name='username'
+									value={formData.username}
 									onChange={handleInputChange}
-									placeholder='Введите ваш email'
+									placeholder='Введите ваш username'
 									className='pl-10 h-12 bg-white/50 border-slate-300 focus:border-primary/50 text-slate-900'
 									required
 								/>
@@ -118,6 +130,13 @@ export function Login({
 								</button>
 							</div>
 						</div>
+
+						{/* Error */}
+						{(error || authError) && (
+							<div className='p-3 text-sm rounded-md bg-red-100 text-red-700 border border-red-200'>
+								{error || authError}
+							</div>
+						)}
 
 						{/* Forgot Password Link */}
 						<div className='text-right'>
