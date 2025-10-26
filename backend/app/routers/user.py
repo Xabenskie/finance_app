@@ -5,6 +5,9 @@ from app.auth import jwt as auth_jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.schemas.user import UserCreate
+from app.crud import refresh_token as refresh_token_crud
+from typing import Dict
+from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/users",
@@ -28,9 +31,64 @@ async def login(login: UserCreate, session: AsyncSession = Depends(get_session))
     db_user = await user_crud.get_user_by_username(session, login.username)
     if not db_user or not auth_jwt.verify_password(login.password, db_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+    
+    # Создаем access token
     access_token = auth_jwt.create_access_token(data={"sub": db_user.username})
-    return {"access_token": access_token, "username": db_user.username}
+    
+    # Создаем refresh token
+    refresh_token, jti, expires_at = auth_jwt.create_refresh_token(data={"sub": db_user.username})
+    
+    # Сохраняем refresh token в БД
+    await refresh_token_crud.save_refresh_token(session, jti, db_user.id, refresh_token, expires_at)
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "username": db_user.username
+    }
 
 @router.get("/me", summary="Текущий пользователь", response_model=Dict[str, str])
 async def read_users_me(username: str = Depends(auth_jwt.get_current_username)) -> Dict[str, str]:
     return {"username": username}
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@router.post("/refresh", summary="Обновить access token", response_model=Dict[str, str])
+async def refresh_access_token(
+    request: RefreshTokenRequest,
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, str]:
+    # Проверяем refresh token
+    username, jti = auth_jwt.verify_refresh_token(request.refresh_token)
+    if not username or not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token"
+        )
+    
+    # Проверяем, существует ли токен в БД
+    db_token = await refresh_token_crud.get_refresh_token(session, request.refresh_token)
+    if not db_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found or expired"
+        )
+    
+    # Создаем новый access token
+    new_access_token = auth_jwt.create_access_token(data={"sub": username})
+    
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer"
+    }
+
+@router.post("/logout", summary="Выход из системы")
+async def logout(
+    request: RefreshTokenRequest,
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, str]:
+    # Удаляем refresh token из БД
+    await refresh_token_crud.delete_refresh_token(session, request.refresh_token)
+    return {"status": "success", "message": "Logged out successfully"}

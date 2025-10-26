@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from app.database import setup_db
 from app.routers import user, transaction, category
 from fastapi.middleware.cors import CORSMiddleware
+# Импортируем модели для создания таблиц
+from app.models import user as user_model, transaction as transaction_model, category as category_model, refresh_token as refresh_token_model
 
 app = FastAPI()
 

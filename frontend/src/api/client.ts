@@ -12,6 +12,24 @@ export const api = axios.create({
 	}
 })
 
+// Флаг для предотвращения множественных refresh запросов
+let isRefreshing = false
+let failedQueue: Array<{
+	resolve: (token: string) => void
+	reject: (error: unknown) => void
+}> = []
+
+const processQueue = (error: unknown, token: string | null = null) => {
+	failedQueue.forEach(prom => {
+		if (error) {
+			prom.reject(error)
+		} else if (token) {
+			prom.resolve(token)
+		}
+	})
+	failedQueue = []
+}
+
 // Тип расширенной ошибки
 export interface ApiErrorData {
 	message: string
@@ -44,10 +62,88 @@ api.interceptors.request.use(config => {
 	return config
 })
 
-// Response interceptor: нормализуем ошибки
+// Response interceptor: нормализуем ошибки + refresh token
 api.interceptors.response.use(
 	response => response,
-	(error: AxiosError) => {
+	async (error: AxiosError) => {
+		const originalRequest = error.config as typeof error.config & {
+			_retry?: boolean
+		}
+
+		// Если 401 ошибка и это не повторный запрос
+		if (error.response?.status === 401 && !originalRequest._retry) {
+			if (isRefreshing) {
+				// Если refresh уже идет, добавляем запрос в очередь
+				return new Promise((resolve, reject) => {
+					failedQueue.push({ resolve, reject })
+				})
+					.then(token => {
+						if (originalRequest.headers) {
+							originalRequest.headers.Authorization = `Bearer ${token}`
+						}
+						return api(originalRequest)
+					})
+					.catch(err => Promise.reject(err))
+			}
+
+			originalRequest._retry = true
+			isRefreshing = true
+
+			const refreshToken = localStorage.getItem('refresh_token')
+			if (!refreshToken) {
+				// Нет refresh токена - выходим
+				isRefreshing = false
+				processQueue(new Error('No refresh token'), null)
+				// Очищаем auth store
+				localStorage.removeItem('auth_token')
+				localStorage.removeItem('refresh_token')
+				localStorage.removeItem('auth_user')
+				window.location.href = '/login'
+				return Promise.reject(error)
+			}
+
+			try {
+				// Запрос на обновление токена
+				const { data } = await axios.post<{
+					access_token: string
+					refresh_token?: string
+				}>(`${baseURL}users/refresh`, {
+					refresh_token: refreshToken
+				})
+
+				const newAccessToken = data.access_token
+				const newRefreshToken = data.refresh_token || refreshToken
+
+				// Сохраняем новые токены
+				localStorage.setItem('auth_token', newAccessToken)
+				if (newRefreshToken) {
+					localStorage.setItem('refresh_token', newRefreshToken)
+				}
+
+				// Обновляем заголовок в оригинальном запросе
+				if (originalRequest.headers) {
+					originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+				}
+
+				// Обрабатываем очередь запросов
+				processQueue(null, newAccessToken)
+				isRefreshing = false
+
+				// Повторяем оригинальный запрос
+				return api(originalRequest)
+			} catch (refreshError) {
+				// Refresh не удался - выходим
+				processQueue(refreshError, null)
+				isRefreshing = false
+				localStorage.removeItem('auth_token')
+				localStorage.removeItem('refresh_token')
+				localStorage.removeItem('auth_user')
+				window.location.href = '/login'
+				return Promise.reject(refreshError)
+			}
+		}
+
+		// Обработка других ошибок
 		if (error.response) {
 			const data: unknown = error.response.data || {}
 			const dataObj =

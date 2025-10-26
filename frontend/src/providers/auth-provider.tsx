@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/use-auth'
 import type { AuthUser } from '@/pages/auth/store/auth-store'
 import { useAuthStore } from '@/pages/auth/store/auth-store'
 import type { ReactNode } from 'react'
-import { createContext, useEffect } from 'react'
+import { createContext, useEffect, useState } from 'react'
 
 interface Credentials {
 	username: string
@@ -27,12 +27,14 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
 	const { user, login, logout, hydrate } = useAuthStore()
+	const [isHydrated, setIsHydrated] = useState(false)
 	const isAuthenticated = !!user
-	const isLoading = false // Можно добавить состояние загрузки при необходимости
+	const isLoading = !isHydrated // Загрузка пока не восстановили состояние
 
 	// Восстанавливаем состояние при загрузке приложения
 	useEffect(() => {
 		hydrate()
+		setIsHydrated(true)
 	}, [hydrate])
 
 	const contextValue: AuthContextType = {
@@ -54,7 +56,19 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-	const { isAuthenticated } = useAuth()
+	const { isAuthenticated, isLoading } = useAuth()
+
+	// Ждем пока загрузится состояние из localStorage
+	if (isLoading) {
+		return (
+			<div className='flex items-center justify-center min-h-screen'>
+				<div className='text-center'>
+					<div className='w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+					<p className='text-muted-foreground'>Загрузка...</p>
+				</div>
+			</div>
+		)
+	}
 
 	if (!isAuthenticated) {
 		// Редирект на страницу входа
