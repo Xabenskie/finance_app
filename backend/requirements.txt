@@ -1,7 +1,8 @@
 aiosqlite==0.21.0
 annotated-types==0.7.0
 anyio==4.10.0
-bcrypt==4.3.0
+bcrypt==4.0.1
+boto3==1.42.80
 certifi==2025.8.3
 cffi==2.0.0
 click==8.2.1
@@ -22,6 +23,7 @@ Jinja2==3.1.6
 markdown-it-py==4.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
+openpyxl==3.1.5
 passlib==1.7.4
 pyasn1==0.6.1
 pycparser==2.23
@@ -50,3 +52,13 @@ uvicorn==0.35.0
 uvloop==0.21.0
 watchfiles==1.1.0
 websockets==15.0.1
+
+# --- PostgreSQL (Лаба 6, опционально через DATABASE_URL) ---
+asyncpg==0.30.0
+
+# --- Тесты (Лаба 5) ---
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-cov==6.0.0
+coverage==7.6.10
+asgi-lifespan==2.1.0

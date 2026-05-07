@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import {
 	createTransaction,
 	getTransactions,
-	getTransactionsStats
+	getTransactionsStats,
+	type TransactionFilters,
+	type TransactionItem
 } from '../api/transactions'
 
 type TransactionsStore = {
@@ -11,24 +13,17 @@ type TransactionsStore = {
 		income: number
 		expense: number
 	}
-	transactions: {
-		id: string
-		type: 'доход' | 'расход'
-		amount: number
-		category_id: string
-		date: string
-		description: string
-	}[]
+	transactions: TransactionItem[]
+	total: number
+	page: number
+	perPage: number
 
 	getStats: () => Promise<void>
-	getTransactions: () => Promise<void>
-	createTransaction: ({
-		type,
-		amount,
-		category_id,
-		date,
-		description
-	}: Omit<TransactionsStore['transactions'][number], 'id'>) => void
+	getTransactions: (filters?: TransactionFilters) => Promise<void>
+	createTransaction: (
+		t: Omit<TransactionItem, 'id'>,
+		filters?: TransactionFilters
+	) => void
 }
 
 export const useTransactionsStore = create<TransactionsStore>(set => ({
@@ -38,25 +33,33 @@ export const useTransactionsStore = create<TransactionsStore>(set => ({
 		expense: 0
 	},
 	transactions: [],
+	total: 0,
+	page: 1,
+	perPage: 10,
 
 	getStats: async () => {
-		await getTransactionsStats().then(data => {
-			set({ stats: data })
+		const data = await getTransactionsStats()
+		set({ stats: data })
+	},
+
+	getTransactions: async (filters?: TransactionFilters) => {
+		const data = await getTransactions(filters)
+		set({
+			transactions: data.items,
+			total: data.total,
+			page: data.page,
+			perPage: data.per_page
 		})
 	},
 
-	getTransactions: async () => {
-		await getTransactions().then(data => {
-			set({ transactions: data })
-			console.log(data)
-		})
-	},
-
-	createTransaction: async transaction => {
+	createTransaction: async (transaction, filters) => {
 		await createTransaction(transaction)
-		// Обновляем список транзакций после создания
-		await getTransactions().then(data => {
-			set({ transactions: data })
+		const data = await getTransactions(filters)
+		set({
+			transactions: data.items,
+			total: data.total,
+			page: data.page,
+			perPage: data.per_page
 		})
 	}
 }))

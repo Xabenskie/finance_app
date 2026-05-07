@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class UserCreate(BaseModel):
     username: str
@@ -7,5 +8,10 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: str
     username: str
-    class Config:
-        orm_mode = True
+    role: str = "user"
+    avatar_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+class UserRoleUpdate(BaseModel):
+    role: str

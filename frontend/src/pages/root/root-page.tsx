@@ -4,16 +4,17 @@ import { useCategoriesStore } from '../categories/store/categories-store'
 import RootHeader from './components/root-header'
 import { RootTopIncrements } from './components/root-top-incremens'
 import RootTrands from './components/root-trands'
+import { WeatherWidget } from './components/weather-widget'
 import { useTransactionsStore } from './store/transactions-store'
 
 export function RootPage() {
-	const { getStats, stats, getTransactions, transactions } =
+	const { getStats, stats, getTransactions, transactions, total } =
 		useTransactionsStore()
 	const { categories, fetchCategories } = useCategoriesStore()
 
 	useEffect(() => {
 		getStats()
-		getTransactions()
+		getTransactions({ per_page: 100 })
 		fetchCategories()
 
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -39,7 +40,7 @@ export function RootPage() {
 				income={stats.income}
 				expense={stats.expense}
 				balance={stats.balance}
-				transactions={transactions.length}
+				transactions={total}
 			/>
 
 			{/* Аналитика */}
@@ -48,8 +49,10 @@ export function RootPage() {
 
 				<RootTopIncrements transactions={transactions} />
 
-				{/* Бюджеты и транзакции */}
+				{/* Погода и транзакции */}
 				<div className='grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6'>
+					<WeatherWidget />
+
 					<div className='group border border-border/50 rounded-2xl p-4 md:p-6 bg-gradient-to-br from-background to-background/80 backdrop-blur-sm hover:shadow-lg transition-all duration-300 min-h-[160px] md:min-h-[180px]'>
 						<div className='flex items-center gap-3 mb-4'>
 							<div className='p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-blue-500/10'>

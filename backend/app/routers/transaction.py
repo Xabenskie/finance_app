@@ -2,13 +2,14 @@ from fastapi.responses import FileResponse
 import openpyxl
 import os
 from fastapi import APIRouter, Depends, HTTPException
-from app.schemas.transaction import TransactionCreate, TransactionOut
-from app.crud.transaction import create_transaction, get_transactions_by_user, get_stats_by_user
+from app.schemas.transaction import TransactionCreate, TransactionOut, TransactionPage
+from app.crud.transaction import create_transaction, get_transactions_by_user, get_stats_by_user, get_transactions_paginated
 from app.auth.jwt import get_current_username
 from app.crud.user import get_user_by_username
 from app.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from fastapi import Query
 
 router = APIRouter(
     prefix="/transactions",
@@ -35,16 +36,22 @@ async def add_transaction(
     )
     return {"status": "ok"}
 
-@router.get("/", summary="Получить все транзакции", response_model=List[TransactionOut])
+@router.get("/", summary="Получить транзакции (с пагинацией и фильтрацией)", response_model=TransactionPage)
 async def get_transactions(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    type: Optional[str] = Query(None),
+    category_id: Optional[str] = Query(None),
     session: AsyncSession = Depends(get_session),
-    username: str = Depends(get_current_username)
-) -> List[TransactionOut]:
+    username: str = Depends(get_current_username),
+) -> TransactionPage:
     user = await get_user_by_username(session, username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    transactions = await get_transactions_by_user(session, user.id)
-    return transactions
+    items, total = await get_transactions_paginated(
+        session, user.id, page, per_page, type, category_id
+    )
+    return TransactionPage(items=items, total=total, page=page, per_page=per_page)
 
 @router.get("/stats", summary="Статистика пользователя", response_model=Dict[str, float])
 async def get_stats(

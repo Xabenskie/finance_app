@@ -13,6 +13,33 @@ async def get_transactions_by_user(session: AsyncSession, user_id: str):
     result = await session.execute(select(Transaction).where(Transaction.user_id == user_id))
     return result.scalars().all()
 
+async def get_transactions_paginated(
+    session: AsyncSession,
+    user_id: str,
+    page: int = 1,
+    per_page: int = 10,
+    type_filter: str | None = None,
+    category_id: str | None = None,
+):
+    base = select(Transaction).where(Transaction.user_id == user_id)
+    count_q = select(func.count()).select_from(Transaction).where(Transaction.user_id == user_id)
+
+    if type_filter:
+        base = base.where(Transaction.type == type_filter)
+        count_q = count_q.where(Transaction.type == type_filter)
+    if category_id:
+        base = base.where(Transaction.category_id == category_id)
+        count_q = count_q.where(Transaction.category_id == category_id)
+
+    total = (await session.execute(count_q)).scalar() or 0
+
+    offset = (page - 1) * per_page
+    result = await session.execute(
+        base.order_by(Transaction.date.desc()).offset(offset).limit(per_page)
+    )
+    items = result.scalars().all()
+    return items, total
+
 async def get_stats_by_user(session: AsyncSession, user_id: str):
     income_result = await session.execute(
         select(func.sum(Transaction.amount)).where(Transaction.user_id == user_id, Transaction.type == "доход")

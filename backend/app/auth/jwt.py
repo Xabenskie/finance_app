@@ -5,11 +5,15 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import uuid
 
-SECRET_KEY = "supersecretkey"
-REFRESH_SECRET_KEY = "superrefreshsecretkey"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+from app.config import settings
+
+SECRET_KEY = settings.secret_key
+REFRESH_SECRET_KEY = settings.refresh_secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
+
+VALID_ROLES = {"user", "manager", "admin"}
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -34,7 +38,7 @@ def create_refresh_token(data: dict):
     token = jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
     return token, jti, expire
 
-def get_current_username(token: str = Depends(oauth2_scheme)):
+def _decode_access_token(token: str) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -46,9 +50,17 @@ def get_current_username(token: str = Depends(oauth2_scheme)):
         token_type: str = payload.get("type")
         if username is None or token_type != "access":
             raise credentials_exception
-        return username
+        return payload
     except JWTError:
         raise credentials_exception
+
+def get_current_username(token: str = Depends(oauth2_scheme)) -> str:
+    payload = _decode_access_token(token)
+    return payload["sub"]
+
+def get_current_user_payload(token: str = Depends(oauth2_scheme)) -> dict:
+    """Returns full JWT payload with sub (username) and role."""
+    return _decode_access_token(token)
 
 def verify_refresh_token(token: str):
     try:

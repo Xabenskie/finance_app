@@ -1,8 +1,9 @@
 import axios, { AxiosError } from 'axios'
 
-// Базовый URL берём из переменной окружения Vite
-// Создайте файл .env.local с переменной: VITE_API_URL=https://api.example.com
-const baseURL = 'http://127.0.0.1:8000/api/'
+// Базовый URL берём из переменной окружения Vite.
+// В docker/prod nginx проксирует /api на backend, так что по умолчанию используем относительный путь.
+// Для локальной разработки vite dev-server тоже проксирует /api -> backend (см. vite.config.ts).
+const baseURL = import.meta.env.VITE_API_URL || '/api/'
 
 export const api = axios.create({
 	baseURL,

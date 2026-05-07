@@ -1,0 +1,79 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build & push images to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Публикуем только если CI прошёл
+    needs: []
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          SHA=${GITHUB_SHA::7}
+          REF_NAME=${GITHUB_REF_NAME//\//-}
+          echo "backend_tags=ghcr.io/$OWNER/$NAME-backend:$SHA,ghcr.io/$OWNER/$NAME-backend:$REF_NAME,ghcr.io/$OWNER/$NAME-backend:latest" >> "$GITHUB_OUTPUT"
+          echo "frontend_tags=ghcr.io/$OWNER/$NAME-frontend:$SHA,ghcr.io/$OWNER/$NAME-frontend:$REF_NAME,ghcr.io/$OWNER/$NAME-frontend:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.backend_tags }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.frontend_tags }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+  deploy:
+    name: Deploy to environment
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Здесь должен быть реальный deploy: ssh, ArgoCD, k8s, и т.д.
+      # Заглушка показывает шаги, которые нужно подключить под целевую инфраструктуру.
+      - name: Trigger remote deploy
+        run: |
+          echo "Развёртывание ${GITHUB_SHA::7} в production"
+          echo "Подключите здесь ваш способ деплоя:"
+          echo "  - ssh + docker compose pull && up -d"
+          echo "  - ArgoCD/Flux для k8s"
+          echo "  - Helm release update"

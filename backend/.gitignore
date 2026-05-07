@@ -183,18 +183,11 @@ Thumbs.db
 *.tmp
 *.temp
 *.log
-*.xlsx
-*.xls
 /tmp/
 
 # Environment variables
 .env*
 !.env.example
-
-# Docker
-.dockerignore
-Dockerfile*
-docker-compose*.yml
 
 # Node modules (if any frontend dependencies)
 node_modules/

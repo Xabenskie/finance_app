@@ -1,19 +1,24 @@
+import { api } from '@/api/client'
 import { useAuthStore } from '@/pages/auth/store/auth-store'
+import type { UserRole } from '@/pages/auth/store/auth-store'
 import {
+	Camera,
 	ChevronDown,
+	Crown,
 	Home,
 	LogOut,
 	Menu,
 	Receipt,
+	Shield,
 	Tags,
 	User,
 	Wallet,
 	X
 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
-const items = [
+const baseItems = [
 	{
 		title: 'Главная',
 		url: '/dashboard',
@@ -31,22 +36,98 @@ const items = [
 	}
 ]
 
+const adminItem = {
+	title: 'Управление',
+	url: '/admin',
+	icon: Shield
+}
+
+const ROLE_LABELS: Record<UserRole, string> = {
+	user: 'Пользователь',
+	manager: 'Менеджер',
+	admin: 'Администратор'
+}
+
+function AvatarImage({
+	src,
+	fallbackIcon,
+	size = 'w-8 h-8'
+}: {
+	src?: string
+	fallbackIcon: React.ReactNode
+	size?: string
+}) {
+	if (src) {
+		return (
+			<img
+				src={src}
+				alt='avatar'
+				className={`${size} rounded-lg object-cover`}
+			/>
+		)
+	}
+	return (
+		<div
+			className={`${size} rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center`}
+		>
+			{fallbackIcon}
+		</div>
+	)
+}
+
 export function AppSidebar() {
-	const { user } = useAuthStore()
+	const { user, setUser } = useAuthStore()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const [isProfileOpen, setIsProfileOpen] = useState(false)
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+	const fileInputRef = useRef<HTMLInputElement>(null)
+
+	const role = user?.role || 'user'
+	const items = role === 'admin' ? [...baseItems, adminItem] : baseItems
 
 	const handleSignOut = () => {
-		// Логика выхода из аккаунта
 		localStorage.removeItem('auth_token')
 		localStorage.removeItem('auth_user')
+		localStorage.removeItem('refresh_token')
 		navigate('/auth')
 	}
 
+	const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0]
+		if (!file || !user) return
+		const formData = new FormData()
+		formData.append('file', file)
+		try {
+			const { data } = await api.post<{ avatar_url: string }>(
+				'/users/avatar',
+				formData,
+				{ headers: { 'Content-Type': 'multipart/form-data' } }
+			)
+			setUser({ ...user, avatar_url: data.avatar_url })
+		} catch {
+			/* ignore */
+		}
+		e.target.value = ''
+	}
+
+	const avatarFallback =
+		role === 'admin' ? (
+			<Crown className='w-4 h-4 text-amber-500' />
+		) : (
+			<User className='w-4 h-4 text-primary' />
+		)
+
 	return (
 		<>
+			<input
+				ref={fileInputRef}
+				type='file'
+				accept='image/*'
+				className='hidden'
+				onChange={handleAvatarUpload}
+			/>
+
 			{/* Mobile Top Bar */}
 			<div className='lg:hidden fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-background to-background/80 border-b border-border/50 backdrop-blur-sm z-50 flex items-center justify-between px-4'>
 				<div className='flex items-center gap-3'>
@@ -82,12 +163,21 @@ export function AppSidebar() {
 			{isProfileOpen && (
 				<div className='lg:hidden fixed top-16 right-4 w-64 p-2 bg-background border border-border/50 rounded-xl shadow-lg backdrop-blur-sm z-40'>
 					<div className='p-3 border-b border-border/30'>
-						<p className='font-medium'>Пользователь</p>
-						<p className='text-xs text-muted-foreground'>user@example.com</p>
+						<p className='font-medium'>{user?.username}</p>
+						<p className='text-xs text-muted-foreground'>
+							{ROLE_LABELS[role]}
+						</p>
 					</div>
 					<button
+						onClick={() => fileInputRef.current?.click()}
+						className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent/50 transition-all duration-200 mt-1'
+					>
+						<Camera className='w-4 h-4' />
+						<span>Сменить аватарку</span>
+					</button>
+					<button
 						onClick={handleSignOut}
-						className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all duration-200 mt-2'
+						className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all duration-200'
 					>
 						<LogOut className='w-4 h-4' />
 						<span>Выйти из аккаунта</span>
@@ -138,7 +228,6 @@ export function AppSidebar() {
 			{/* Desktop Sidebar */}
 			<div className='hidden lg:block fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-background to-background/80 border-r border-border/50 backdrop-blur-sm z-50'>
 				<div className='p-6'>
-					{/* Logo and Title */}
 					<div className='flex items-center gap-3 mb-8'>
 						<div className='w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center'>
 							<Wallet className='w-5 h-5 text-primary' />
@@ -148,7 +237,6 @@ export function AppSidebar() {
 						</h1>
 					</div>
 
-					{/* Navigation */}
 					<nav className='space-y-2'>
 						{items.map(item => {
 							const isActive = location.pathname === item.url
@@ -191,13 +279,14 @@ export function AppSidebar() {
 							onClick={() => setIsProfileOpen(!isProfileOpen)}
 							className='w-full flex items-center gap-3 p-3 rounded-xl hover:bg-accent/50 transition-all duration-200'
 						>
-							<div className='w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center'>
-								<User className='w-4 h-4 text-primary' />
-							</div>
+							<AvatarImage
+								src={user?.avatar_url}
+								fallbackIcon={avatarFallback}
+							/>
 							<div className='flex-1 text-left'>
-								<p className='text-sm font-medium'>Пользователь</p>
+								<p className='text-sm font-medium'>{user?.username}</p>
 								<p className='text-xs text-muted-foreground'>
-									{user?.username}
+									{ROLE_LABELS[role]}
 								</p>
 							</div>
 							<ChevronDown
@@ -209,6 +298,13 @@ export function AppSidebar() {
 
 						{isProfileOpen && (
 							<div className='absolute bottom-full left-0 right-0 mb-2 p-2 bg-background border border-border/50 rounded-xl shadow-lg backdrop-blur-sm'>
+								<button
+									onClick={() => fileInputRef.current?.click()}
+									className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent/50 transition-all duration-200'
+								>
+									<Camera className='w-4 h-4' />
+									<span>Сменить аватарку</span>
+								</button>
 								<button
 									onClick={handleSignOut}
 									className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-500/10 transition-all duration-200'

@@ -9,6 +9,8 @@ export interface LoginResponse {
 	access_token: string
 	refresh_token?: string
 	username: string
+	role: string
+	avatar_url?: string
 }
 
 export async function login(req: LoginRequest): Promise<LoginResponse> {

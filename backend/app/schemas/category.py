@@ -8,5 +8,4 @@ class CategoryOut(BaseModel):
     id: str
     name: str
     type: str
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}

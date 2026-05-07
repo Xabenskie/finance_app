@@ -2,6 +2,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
 	Calendar,
+	ChevronLeft,
+	ChevronRight,
 	FileText,
 	MoreHorizontal,
 	Plus,
@@ -13,8 +15,10 @@ import { useEffect, useState } from 'react'
 import { useCategoriesStore } from '../categories/store/categories-store'
 import { useTransactionsStore } from '../root/store/transactions-store'
 
+const PER_PAGE = 10
+
 export function TransactionsPage() {
-	const { transactions, getTransactions, createTransaction } =
+	const { transactions, total, getTransactions, createTransaction } =
 		useTransactionsStore()
 	const { categories, fetchCategories } = useCategoriesStore()
 
@@ -27,41 +31,68 @@ export function TransactionsPage() {
 	const [date, setDate] = useState(
 		new Date().toISOString().split('T')[0].split('-').reverse().join('.')
 	)
+
 	const [filter, setFilter] = useState<'все' | 'доход' | 'расход'>('все')
+	const [filterCategory, setFilterCategory] = useState('')
+	const [page, setPage] = useState(1)
+	const totalPages = Math.max(1, Math.ceil(total / PER_PAGE))
+
+	const fetchFiltered = (p: number, f: typeof filter, cat: string) => {
+		getTransactions({
+			page: p,
+			per_page: PER_PAGE,
+			type: f === 'все' ? undefined : f,
+			category_id: cat || undefined
+		})
+	}
 
 	useEffect(() => {
 		fetchCategories()
-		getTransactions()
+		fetchFiltered(1, filter, filterCategory)
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
-	// Фильтрация транзакций
-	const filteredTransactions = transactions.filter(transaction => {
-		if (filter === 'все') return true
-		return transaction.type === filter
-	})
+	const handleFilterChange = (newFilter: typeof filter) => {
+		setFilter(newFilter)
+		setPage(1)
+		fetchFiltered(1, newFilter, filterCategory)
+	}
+
+	const handleCategoryFilter = (catId: string) => {
+		setFilterCategory(catId)
+		setPage(1)
+		fetchFiltered(1, filter, catId)
+	}
+
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage)
+		fetchFiltered(newPage, filter, filterCategory)
+	}
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
-
-		// Проверяем, заполнены ли все поля
 		if (!amount || !category || !description || !date) {
 			alert('Пожалуйста, заполните все поля.')
 			return
 		}
 
-		// Преобразуем дату из формата "dd.mm.yyyy" в "yyyy-mm-dd"
 		const formattedDate = date.split('.').reverse().join('-')
+		createTransaction(
+			{
+				type: transactionType,
+				amount: Number(amount),
+				category_id: category,
+				date: formattedDate,
+				description
+			},
+			{
+				page,
+				per_page: PER_PAGE,
+				type: filter === 'все' ? undefined : filter,
+				category_id: filterCategory || undefined
+			}
+		)
 
-		createTransaction({
-			type: transactionType,
-			amount: Number(amount),
-			category_id: category,
-			date: formattedDate,
-			description
-		})
-
-		// Сброс формы
 		setTransactionType('расход')
 		setAmount('')
 		setCategory('')
@@ -73,10 +104,8 @@ export function TransactionsPage() {
 
 	return (
 		<div className='w-full mx-auto p-4 md:p-6 lg:p-8 space-y-6'>
-			{/* Заголовок */}
-
 			<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-				{/* Форма добавления транзакции */}
+				{/* Форма */}
 				<div className='lg:col-span-1 space-y-6'>
 					<div className='border border-border/50 rounded-2xl p-6 bg-gradient-to-br from-background to-background/80 backdrop-blur-sm'>
 						<div className='flex items-center gap-3 mb-6'>
@@ -92,7 +121,6 @@ export function TransactionsPage() {
 						</div>
 
 						<form onSubmit={handleSubmit} className='space-y-4'>
-							{/* Тип транзакции */}
 							<div className='space-y-2'>
 								<label className='text-sm font-medium'>Тип транзакции</label>
 								<div className='flex gap-2'>
@@ -123,7 +151,6 @@ export function TransactionsPage() {
 								</div>
 							</div>
 
-							{/* Сумма */}
 							<div className='space-y-2'>
 								<label className='text-sm font-medium flex items-center gap-2'>
 									Сумма (₽)
@@ -137,7 +164,6 @@ export function TransactionsPage() {
 								/>
 							</div>
 
-							{/* Категория */}
 							<div className='space-y-2'>
 								<label className='text-sm font-medium flex items-center gap-2'>
 									<Tag className='w-4 h-4' />
@@ -162,7 +188,6 @@ export function TransactionsPage() {
 								</select>
 							</div>
 
-							{/* Описание */}
 							<div className='space-y-2'>
 								<label className='text-sm font-medium flex items-center gap-2'>
 									<FileText className='w-4 h-4' />
@@ -175,7 +200,6 @@ export function TransactionsPage() {
 								/>
 							</div>
 
-							{/* Дата */}
 							<div className='space-y-2'>
 								<label className='text-sm font-medium flex items-center gap-2'>
 									<Calendar className='w-4 h-4' />
@@ -201,20 +225,20 @@ export function TransactionsPage() {
 					</div>
 				</div>
 
-				{/* Список транзакций */}
+				{/* Список */}
 				<div className='lg:col-span-2 space-y-4'>
 					{/* Фильтры */}
-					<div className='flex gap-2'>
+					<div className='flex flex-wrap gap-2'>
 						<Button
 							variant={filter === 'все' ? 'default' : 'outline'}
-							onClick={() => setFilter('все')}
+							onClick={() => handleFilterChange('все')}
 							size='sm'
 						>
-							Все ({transactions.length})
+							Все ({total})
 						</Button>
 						<Button
 							variant={filter === 'доход' ? 'default' : 'outline'}
-							onClick={() => setFilter('доход')}
+							onClick={() => handleFilterChange('доход')}
 							size='sm'
 							className={
 								filter === 'доход'
@@ -222,11 +246,11 @@ export function TransactionsPage() {
 									: 'border-green-500 text-green-600 hover:bg-green-50'
 							}
 						>
-							Доходы ({transactions.filter(t => t.type === 'доход').length})
+							Доходы
 						</Button>
 						<Button
 							variant={filter === 'расход' ? 'default' : 'outline'}
-							onClick={() => setFilter('расход')}
+							onClick={() => handleFilterChange('расход')}
 							size='sm'
 							className={
 								filter === 'расход'
@@ -234,13 +258,35 @@ export function TransactionsPage() {
 									: 'border-red-500 text-red-600 hover:bg-red-50'
 							}
 						>
-							Расходы ({transactions.filter(t => t.type === 'расход').length})
+							Расходы
 						</Button>
+
+						<select
+							value={filterCategory}
+							onChange={e => handleCategoryFilter(e.target.value)}
+							className='px-3 py-1 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20'
+						>
+							<option value=''>Все категории</option>
+							{categories
+								.filter(
+									c => filter === 'все' || c.type === filter
+								)
+								.map(cat => (
+									<option key={cat.id} value={cat.id}>
+										{cat.name}
+									</option>
+								))}
+						</select>
 					</div>
 
 					<div className='border border-border/50 rounded-2xl p-6 bg-gradient-to-br from-background to-background/80 backdrop-blur-sm'>
 						<div className='flex items-center justify-between mb-6'>
-							<h2 className='font-semibold text-lg'>Последние транзакции</h2>
+							<h2 className='font-semibold text-lg'>
+								Транзакции
+								<span className='text-muted-foreground font-normal text-sm ml-2'>
+									({total})
+								</span>
+							</h2>
 							<Button variant='ghost' size='sm'>
 								<MoreHorizontal className='w-4 h-4' />
 							</Button>
@@ -251,26 +297,11 @@ export function TransactionsPage() {
 								<div className='w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center'>
 									<FileText className='w-6 h-6 text-muted-foreground' />
 								</div>
-								<p className='text-muted-foreground'>Транзакций пока нет</p>
-								<p className='text-sm text-muted-foreground'>
-									Добавьте первую транзакцию
-								</p>
-							</div>
-						) : filteredTransactions.length === 0 ? (
-							<div className='text-center py-12'>
-								<div className='w-16 h-16 mx-auto mb-4 rounded-full bg-muted/20 flex items-center justify-center'>
-									<FileText className='w-6 h-6 text-muted-foreground' />
-								</div>
-								<p className='text-muted-foreground'>
-									Нет транзакций по фильтру
-								</p>
-								<p className='text-sm text-muted-foreground'>
-									Попробуйте изменить фильтр
-								</p>
+								<p className='text-muted-foreground'>Транзакций не найдено</p>
 							</div>
 						) : (
 							<div className='space-y-3'>
-								{[...filteredTransactions].reverse().map(transaction => (
+								{transactions.map(transaction => (
 									<div
 										key={transaction.id}
 										className='group p-4 rounded-xl border border-border/30 hover:border-border/60 bg-gradient-to-r from-background to-background/50 hover:shadow-md transition-all duration-200'
@@ -320,6 +351,35 @@ export function TransactionsPage() {
 										</div>
 									</div>
 								))}
+							</div>
+						)}
+
+						{/* Пагинация */}
+						{totalPages > 1 && (
+							<div className='flex items-center justify-center gap-3 mt-6 pt-4 border-t border-border/30'>
+								<Button
+									variant='outline'
+									size='sm'
+									disabled={page <= 1}
+									onClick={() => handlePageChange(page - 1)}
+									className='gap-1'
+								>
+									<ChevronLeft className='w-4 h-4' />
+									Назад
+								</Button>
+								<span className='text-sm text-muted-foreground'>
+									Страница {page} из {totalPages}
+								</span>
+								<Button
+									variant='outline'
+									size='sm'
+									disabled={page >= totalPages}
+									onClick={() => handlePageChange(page + 1)}
+									className='gap-1'
+								>
+									Вперёд
+									<ChevronRight className='w-4 h-4' />
+								</Button>
 							</div>
 						)}
 					</div>

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 
 class TransactionCreate(BaseModel):
     type: Literal["доход", "расход"]
@@ -16,5 +16,10 @@ class TransactionOut(BaseModel):
     category_id: str
     description: Optional[str]
     date: date
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
+
+class TransactionPage(BaseModel):
+    items: List[TransactionOut]
+    total: int
+    page: int
+    per_page: int

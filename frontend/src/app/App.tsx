@@ -1,4 +1,5 @@
 import { AppSidebar } from '@/components/app-sidebar'
+import { AdminPage } from '@/pages/admin/admin-page'
 import { AuthPage } from '@/pages/auth/auth-page'
 import { CategoriesPage } from '@/pages/categories/categories-page'
 import { LandingPage } from '@/pages/landing/landing-page'
@@ -52,7 +53,14 @@ function App() {
 									</ProtectedRoute>
 								}
 							/>
-							{/* 404 страница */}
+							<Route
+								path='/admin'
+								element={
+									<ProtectedRoute allowedRoles={['admin']}>
+										<AdminPage />
+									</ProtectedRoute>
+								}
+							/>
 							<Route path='*' element={<NotFoundPage />} />
 						</Routes>
 					</div>

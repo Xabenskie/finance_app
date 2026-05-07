@@ -332,7 +332,7 @@ export function LandingPage() {
 							</span>
 						</div>
 						<div className='flex items-center gap-8 text-sm text-muted-foreground'>
-							<span>© 2025 FinanceApp. Все права защищены.</span>
+							<span>© 2026 FinanceApp. Все права защищены.</span>
 						</div>
 					</div>
 				</div>

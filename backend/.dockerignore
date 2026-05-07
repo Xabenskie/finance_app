@@ -1,0 +1,42 @@
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
+coverage.xml
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+venv/
+.venv/
+env/
+
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+
+# Локальная БД и временные файлы
+finance.db
+*.sqlite
+*.sqlite3
+
+# Тесты не нужны в проде
+tests/
+
+# Документация и компонент-кеш
+*.md
+README*
+
+.env
+.env.*
+!.env.example

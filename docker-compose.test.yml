@@ -1,0 +1,33 @@
+name: finance-app-test
+
+# Изолированное окружение для запуска тестов backend в контейнере.
+# Использование:  docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from backend-tests
+
+services:
+  test-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: finance
+      POSTGRES_DB: finance_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend-tests:
+    build:
+      context: ./backend
+    depends_on:
+      test-db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: test
+      # Тесты сами поднимают in-memory SQLite (см. tests/conftest.py),
+      # но для smoke-команд можно использовать настоящую БД:
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+      SECRET_KEY: test-secret
+      REFRESH_SECRET_KEY: test-refresh
+      S3_ENDPOINT_URL: http://fake:9000
+    command: ["python", "-m", "pytest", "tests/", "--cov=app", "--cov-report=term"]

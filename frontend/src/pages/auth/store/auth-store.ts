@@ -2,9 +2,12 @@ import { ApiError } from '@/api/client'
 import { login as loginApi } from '@/pages/auth/login/api/login'
 import { create } from 'zustand'
 
-// Тип пользователя (расширяйте по мере появления полей)
+export type UserRole = 'user' | 'manager' | 'admin'
+
 export interface AuthUser {
 	username: string
+	role: UserRole
+	avatar_url?: string
 }
 
 interface Credentials {
@@ -18,7 +21,6 @@ interface AuthState {
 	refreshToken: string | null
 	isLoading: boolean
 	error: string | null
-	// actions
 	login: (cred: Credentials) => Promise<void>
 	logout: () => void
 	setUser: (u: AuthUser | null) => void
@@ -58,7 +60,12 @@ function readFromStorage(): {
 	let user: AuthUser | null = null
 	if (rawUser) {
 		try {
-			user = JSON.parse(rawUser) as AuthUser
+			const parsed = JSON.parse(rawUser)
+			user = {
+				username: parsed.username,
+				role: parsed.role || 'user',
+				avatar_url: parsed.avatar_url || undefined,
+			}
 		} catch {
 			user = null
 		}
@@ -105,7 +112,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				username: cred.username,
 				password: cred.password
 			})
-			const user: AuthUser = { username: data.username }
+			const user: AuthUser = {
+				username: data.username,
+				role: (data.role as UserRole) || 'user',
+				avatar_url: data.avatar_url || undefined,
+			}
 			const token = data.access_token
 			const refreshToken = data.refresh_token || ''
 			saveToStorage(token, refreshToken, user)
@@ -121,17 +132,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		}
 	}
 }))
-
-/*
-Пример использования в компоненте:
-
-const { login, user, isLoading, error, logout } = useAuthStore()
-
-async function handleLogin() {
-  await login({ email: form.email, password: form.password })
-}
-
-useEffect(() => {
-  if (user) navigate('/dashboard')
-}, [user])
-*/

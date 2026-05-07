@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+
+# Тесты и отчёты не нужны для прода-сборки
+e2e/
+playwright-report/
+test-results/
+coverage/
+**/*.test.ts
+**/*.test.tsx
+**/__snapshots__/
+
+# Локальные env
+.env
+.env.*
+!.env.example
+
+# README
+*.md

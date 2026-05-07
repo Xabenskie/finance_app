@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /categories
+Disallow: /admin
+Disallow: /auth
+
+Sitemap: https://financeapp.ru/sitemap.xml
