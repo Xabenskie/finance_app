@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/pages/auth/store/auth-store'
 import { Eye, EyeOff, Lock, Mail, Wallet } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 export function Login({
@@ -34,6 +34,12 @@ export function Login({
 		}))
 	}
 
+	useEffect(() => {
+		if (user) {
+			navigate('/dashboard', { replace: true })
+		}
+	}, [user, navigate])
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setIsLoading(true)
@@ -44,13 +50,7 @@ export function Login({
 				username: formData.username,
 				password: formData.password
 			})
-
-			if (user) {
-				navigate('/dashboard')
-			}
-			// редирект теперь делаем только по user
 		} catch (err) {
-			// error уже обработан в сторе
 			console.log(err)
 		} finally {
 			setIsLoading(false)
